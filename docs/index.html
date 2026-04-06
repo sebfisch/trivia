@@ -1,1 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f0f1a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Trivia Pursuit</title>
+  <style>
+    :root {
+      --blue:    #2563eb;
+      --pink:    #db2777;
+      --yellow:  #ca8a04;
+      --brown:   #92400e;
+      --green:   #16a34a;
+      --purple:  #7c3aed;
 
+      --bg:        #0f0f1a;
+      --surface:   #1a1a2e;
+      --surface-2: #252540;
+      --surface-3: #2e2e50;
+      --text:      #f0f0f8;
+      --muted:     #8080a0;
+      --radius:    14px;
+      --radius-sm: 8px;
+      --trans:     0.2s ease;
+      --touch:     52px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: none;
+    }
+
+    /* ─── Screens ─────────────────────────────────────────── */
+    .screen {
+      display: none;
+      flex-direction: column;
+      min-height: 100dvh;
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 0;
+      position: relative;
+    }
+    .screen.active { display: flex; }
+
+    /* ─── Spinner Overlay ─────────────────────────────────── */
+    #spinner-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,15,26,0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      backdrop-filter: blur(4px);
+    }
+    #spinner-overlay[hidden] { display: none; }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 4px solid var(--surface-3);
+      border-top-color: var(--text);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Toast ───────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--surface-3);
+      color: var(--text);
+      padding: 12px 20px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.25s, transform 0.25s;
+      pointer-events: none;
+      max-width: 88vw;
+      white-space: normal;
+      text-align: center;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ─── HOME SCREEN ─────────────────────────────────────── */
+    .home-header {
+      padding: 52px 24px 20px;
+      position: relative;
+    }
+    .home-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #818cf8, #c084fc, #f472b6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+    }
+    .home-subtitle {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+    .settings-btn {
+      position: absolute;
+      top: 52px;
+      right: 20px;
+      width: 44px; height: 44px;
+      border: none;
+      background: var(--surface-2);
+      color: var(--muted);
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background var(--trans), color var(--trans);
+    }
+    .settings-btn:active { background: var(--surface-3); color: var(--text); }
+
+    .section-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0 24px;
+      margin-bottom: 10px;
+    }
+    .diff-row {
+      display: flex;
+      gap: 8px;
+      padding: 0 24px;
+      margin-bottom: 28px;
+    }
+    .diff-btn {
+      flex: 1;
+      min-height: 40px;
+      border: 2px solid var(--surface-3);
+      background: transparent;
+      color: var(--muted);
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--trans);
+      padding: 0 8px;
+    }
+    .diff-btn.selected {
+      background: var(--text);
+      color: var(--bg);
+      border-color: var(--text);
+    }
+    .diff-btn:active { opacity: 0.75; }
+
+    .cat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding: 0 24px 36px;
+    }
+    .cat-btn {
+      min-height: 100px;
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 16px 12px;
+      position: relative;
+      overflow: hidden;
+      transition: transform var(--trans), filter var(--trans);
+    }
+    .cat-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.12);
+      opacity: 0;
+      transition: opacity var(--trans);
+    }
+    .cat-btn:active { transform: scale(0.95); filter: brightness(0.85); }
+    .cat-btn:active::before { opacity: 1; }
+    .cat-icon { font-size: 1.8rem; line-height: 1; }
+    .cat-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.25;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+
+    /* ─── QUESTION SCREEN ─────────────────────────────────── */
+    .q-header {
+      padding: 52px 20px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .back-btn {
+      width: 40px; height: 40px;
+      border: none;
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background var(--trans);
+    }
+    .back-btn:active { background: rgba(255,255,255,0.25); }
+    .q-header-info { display: flex; flex-direction: column; gap: 2px; }
+    .q-cat-name {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.85);
+    }
+    .q-difficulty {
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.55);
+      text-transform: capitalize;
+    }
+    .q-body {
+      padding: 0 20px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .q-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      border: 1px solid var(--surface-3);
+    }
+    .q-text {
+      font-size: 1.15rem;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .q-meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+    .answers-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .answer-btn {
+      width: 100%;
+      min-height: var(--touch);
+      background: var(--surface);
+      border: 2px solid var(--surface-3);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 0.95rem;
+      text-align: left;
+      padding: 12px 16px;
+      cursor: pointer;
+      line-height: 1.4;
+      transition: all var(--trans);
+    }
+    .answer-btn:active:not([disabled]) { background: var(--surface-2); }
+    .answer-btn.tapped { border-color: var(--muted); background: var(--surface-2); }
+    .answer-btn.correct { background: #14532d; border-color: #22c55e; color: #bbf7d0; }
+    .answer-btn.incorrect { background: #450a0a; border-color: #ef4444; color: #fecaca; }
+    .answer-btn[disabled] { cursor: default; }
+
+    .reveal-btn {
+      width: 100%;
+      min-height: var(--touch);
+      border: 2px dashed var(--surface-3);
+      background: transparent;
+      color: var(--muted);
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--trans);
+    }
+    .reveal-btn:active { background: var(--surface-2); color: var(--text); }
+    .reveal-btn[hidden] { display: none; }
+
+    .q-footer { padding: 16px 20px 36px; margin-top: auto; }
+    .next-btn {
+      width: 100%;
+      min-height: var(--touch);
+      background: var(--surface-2);
+      border: 2px solid var(--surface-3);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--trans);
+    }
+    .next-btn:active { background: var(--surface-3); }
+
+    /* ─── SETTINGS SCREEN ─────────────────────────────────── */
+    .s-header {
+      padding: 52px 20px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border-bottom: 1px solid var(--surface-2);
+    }
+    .s-back-btn {
+      width: 40px; height: 40px;
+      border: none;
+      background: var(--surface-2);
+      color: var(--text);
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background var(--trans);
+    }
+    .s-back-btn:active { background: var(--surface-3); }
+    .s-title { font-size: 1.2rem; font-weight: 700; }
+    .s-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .s-row { display: flex; flex-direction: column; gap: 8px; }
+    .s-row-header { display: flex; align-items: center; gap: 10px; }
+    .color-dot { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; }
+    .s-color-label { font-size: 0.85rem; font-weight: 700; text-transform: capitalize; }
+    .s-select {
+      width: 100%;
+      min-height: 44px;
+      background: var(--surface-2);
+      border: 1px solid var(--surface-3);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 0.9rem;
+      padding: 0 36px 0 12px;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238080a0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+    }
+    .s-select:focus { outline: none; border-color: var(--muted); }
+    .s-footer { padding: 16px 20px 36px; }
+    .reset-btn {
+      width: 100%;
+      min-height: var(--touch);
+      background: transparent;
+      border: 1.5px solid var(--surface-3);
+      border-radius: var(--radius);
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--trans);
+    }
+    .reset-btn:active { background: var(--surface-2); color: var(--text); }
+  </style>
+</head>
+<body>
+
+  <!-- ─── Home Screen ───────────────────────────────────────── -->
+  <div id="screen-home" class="screen">
+    <div class="home-header">
+      <div class="home-title">Trivia Pursuit</div>
+      <div class="home-subtitle">Tap a category to draw a card</div>
+      <button class="settings-btn" id="open-settings-btn" aria-label="Settings">⚙️</button>
+    </div>
+
+    <div class="section-label">Difficulty</div>
+    <div class="diff-row" id="diff-row">
+      <button class="diff-btn" data-diff="easy">Easy</button>
+      <button class="diff-btn selected" data-diff="medium">Medium</button>
+      <button class="diff-btn" data-diff="hard">Hard</button>
+      <button class="diff-btn" data-diff="any">Any</button>
+    </div>
+
+    <div class="section-label">Category</div>
+    <div class="cat-grid" id="cat-grid"></div>
+  </div>
+
+  <!-- ─── Question Screen ───────────────────────────────────── -->
+  <div id="screen-question" class="screen">
+    <div class="q-header" id="q-header">
+      <button class="back-btn" id="back-btn" aria-label="Back">←</button>
+      <div class="q-header-info">
+        <div class="q-cat-name" id="q-cat-name"></div>
+        <div class="q-difficulty" id="q-difficulty-label"></div>
+      </div>
+    </div>
+    <div class="q-body">
+      <div class="q-card">
+        <div class="q-text" id="q-text"></div>
+        <div class="q-meta" id="q-meta"></div>
+      </div>
+      <div class="answers-list" id="answers-list"></div>
+      <button class="reveal-btn" id="reveal-btn">👁 Reveal Answer</button>
+    </div>
+    <div class="q-footer">
+      <button class="next-btn" id="next-btn">Next Question →</button>
+    </div>
+  </div>
+
+  <!-- ─── Settings Screen ───────────────────────────────────── -->
+  <div id="screen-settings" class="screen">
+    <div class="s-header">
+      <button class="s-back-btn" id="settings-back-btn" aria-label="Back">←</button>
+      <div class="s-title">Category Settings</div>
+    </div>
+    <div class="s-body" id="s-body"></div>
+    <div class="s-footer">
+      <button class="reset-btn" id="reset-btn">Reset to Defaults</button>
+    </div>
+  </div>
+
+  <!-- ─── Overlays ─────────────────────────────────────────── -->
+  <div id="spinner-overlay" hidden><div class="spinner"></div></div>
+  <div id="toast"></div>
+
+  <script>
+    /* ═══════════════════════════════════════════════════════
+       CONFIG
+    ═══════════════════════════════════════════════════════ */
+    const COLORS = ['blue', 'pink', 'yellow', 'brown', 'green', 'purple'];
+
+    const COLOR_META = {
+      blue:   { hex: '#2563eb', icon: '🌍', label: 'Geography' },
+      pink:   { hex: '#db2777', icon: '🎬', label: 'Entertainment' },
+      yellow: { hex: '#ca8a04', icon: '📜', label: 'History' },
+      brown:  { hex: '#92400e', icon: '🎨', label: 'Art & Literature' },
+      green:  { hex: '#16a34a', icon: '🔬', label: 'Science' },
+      purple: { hex: '#7c3aed', icon: '⚽', label: 'Sports' },
+    };
+
+    const DEFAULTS = {
+      blue: 22, pink: 11, yellow: 23, brown: 25, green: 17, purple: 21,
+    };
+
+    const STORAGE_KEY_CATS  = 'tp-categories';
+    const STORAGE_KEY_TOKEN = 'tp-session-token';
+    const TOKEN_TTL = 6 * 60 * 60 * 1000; // 6 hours in ms
+
+    /* ═══════════════════════════════════════════════════════
+       STATE
+    ═══════════════════════════════════════════════════════ */
+    const state = {
+      difficulty: 'medium',
+      categories: loadCategories(),
+      sessionToken: null,
+      currentColor: null,
+      currentQuestion: null,
+      revealed: false,
+      selectedAnswer: null,
+      allCategories: null,
+    };
+
+    function loadCategories() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_CATS));
+        if (saved && typeof saved === 'object') return { ...DEFAULTS, ...saved };
+      } catch (_) {}
+      return { ...DEFAULTS };
+    }
+
+    function saveCategories() {
+      localStorage.setItem(STORAGE_KEY_CATS, JSON.stringify(state.categories));
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       UTILITIES
+    ═══════════════════════════════════════════════════════ */
+    function decodeHTML(str) {
+      return new DOMParser()
+        .parseFromString(str, 'text/html')
+        .documentElement.textContent;
+    }
+
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function showSpinner() { document.getElementById('spinner-overlay').hidden = false; }
+    function hideSpinner() { document.getElementById('spinner-overlay').hidden = true; }
+
+    let toastTimer = null;
+    function showToast(msg, duration = 3500) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), duration);
+    }
+
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('screen-' + id).classList.add('active');
+      window.scrollTo(0, 0);
+    }
+
+    function getCategoryName(id) {
+      if (!state.allCategories) return null;
+      const cat = state.allCategories.find(c => c.id === id);
+      return cat ? cat.name : null;
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       API
+    ═══════════════════════════════════════════════════════ */
+    async function fetchToken() {
+      const res = await fetch('https://opentdb.com/api_token.php?command=request');
+      if (!res.ok) throw new Error('Network error');
+      const data = await res.json();
+      if (data.response_code !== 0) throw new Error('Token request failed');
+      const record = { token: data.token, ts: Date.now() };
+      localStorage.setItem(STORAGE_KEY_TOKEN, JSON.stringify(record));
+      state.sessionToken = data.token;
+      return data.token;
+    }
+
+    async function getToken() {
+      if (state.sessionToken) return state.sessionToken;
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_TOKEN));
+        if (saved && Date.now() - saved.ts < TOKEN_TTL) {
+          state.sessionToken = saved.token;
+          return saved.token;
+        }
+      } catch (_) {}
+      return fetchToken();
+    }
+
+    async function resetToken() {
+      const token = state.sessionToken;
+      state.sessionToken = null;
+      localStorage.removeItem(STORAGE_KEY_TOKEN);
+      if (token) {
+        try {
+          const res = await fetch(`https://opentdb.com/api_token.php?command=reset&token=${token}`);
+          if (res.ok) {
+            const data = await res.json();
+            const record = { token: data.token, ts: Date.now() };
+            localStorage.setItem(STORAGE_KEY_TOKEN, JSON.stringify(record));
+            state.sessionToken = data.token;
+            return data.token;
+          }
+        } catch (_) {}
+      }
+      return fetchToken();
+    }
+
+    async function fetchQuestion(categoryId, difficulty, isRetry = false) {
+      let token = null;
+      try { token = await getToken(); } catch (_) {}
+
+      let url = 'https://opentdb.com/api.php?amount=1&type=multiple';
+      if (categoryId) url += `&category=${categoryId}`;
+      if (difficulty !== 'any') url += `&difficulty=${difficulty}`;
+      if (token) url += `&token=${token}`;
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('network');
+      const data = await res.json();
+
+      if (data.response_code === 0) return data.results[0];
+      if (data.response_code === 1) throw new Error('no_results');
+      if (data.response_code === 2) throw new Error('invalid_param');
+      if (data.response_code === 5) throw new Error('rate_limit');
+      if ((data.response_code === 3 || data.response_code === 4) && !isRetry) {
+        await resetToken();
+        return fetchQuestion(categoryId, difficulty, true);
+      }
+      throw new Error('api_error');
+    }
+
+    async function fetchAllCategories() {
+      if (state.allCategories) return state.allCategories;
+      const res = await fetch('https://opentdb.com/api_category.php');
+      if (!res.ok) throw new Error('Failed to load categories');
+      const data = await res.json();
+      state.allCategories = data.trivia_categories;
+      return state.allCategories;
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       HOME SCREEN
+    ═══════════════════════════════════════════════════════ */
+    function renderCategoryGrid() {
+      const grid = document.getElementById('cat-grid');
+      grid.innerHTML = '';
+      COLORS.forEach(color => {
+        const meta = COLOR_META[color];
+        const catId = state.categories[color];
+        const catName = getCategoryName(catId) || meta.label;
+
+        const btn = document.createElement('button');
+        btn.className = 'cat-btn';
+        btn.style.background =
+          `linear-gradient(135deg, ${meta.hex}ee, ${meta.hex}99)`;
+        btn.innerHTML =
+          `<span class="cat-icon">${meta.icon}</span>` +
+          `<span class="cat-label">${catName}</span>`;
+        btn.addEventListener('click', () => startQuestion(color));
+        grid.appendChild(btn);
+      });
+    }
+
+    document.getElementById('diff-row').addEventListener('click', e => {
+      const btn = e.target.closest('.diff-btn');
+      if (!btn) return;
+      document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      state.difficulty = btn.dataset.diff;
+    });
+
+    document.getElementById('open-settings-btn').addEventListener('click', openSettings);
+
+    /* ═══════════════════════════════════════════════════════
+       QUESTION FLOW
+    ═══════════════════════════════════════════════════════ */
+    async function startQuestion(color) {
+      state.currentColor = color;
+      showSpinner();
+      try {
+        const q = await fetchQuestion(state.categories[color], state.difficulty);
+        state.currentQuestion = q;
+        state.revealed = false;
+        state.selectedAnswer = null;
+        renderQuestion(color, q);
+        showScreen('question');
+      } catch (err) {
+        if (err.message === 'no_results') {
+          showToast('No questions found for this combination — try a different difficulty.');
+        } else if (err.message === 'rate_limit') {
+          showToast('Too many requests. Please wait a moment and try again.');
+        } else {
+          showToast('Could not load question. Check your connection.');
+        }
+      } finally {
+        hideSpinner();
+      }
+    }
+
+    function renderQuestion(color, q) {
+      const meta = COLOR_META[color];
+
+      const header = document.getElementById('q-header');
+      header.style.background =
+        `linear-gradient(135deg, ${meta.hex}cc, ${meta.hex}77)`;
+
+      document.getElementById('q-cat-name').textContent =
+        getCategoryName(state.categories[color]) || meta.label;
+      document.getElementById('q-difficulty-label').textContent =
+        q.difficulty.charAt(0).toUpperCase() + q.difficulty.slice(1);
+      document.getElementById('q-text').textContent = decodeHTML(q.question);
+      document.getElementById('q-meta').textContent = decodeHTML(q.category);
+
+      const answers = shuffle([q.correct_answer, ...q.incorrect_answers]);
+      const list = document.getElementById('answers-list');
+      list.innerHTML = '';
+      answers.forEach(ans => {
+        const btn = document.createElement('button');
+        btn.className = 'answer-btn';
+        btn.textContent = decodeHTML(ans);
+        btn.dataset.answer = ans;
+        btn.addEventListener('click', () => tapAnswer(btn, ans));
+        list.appendChild(btn);
+      });
+
+      document.getElementById('reveal-btn').hidden = false;
+    }
+
+    function tapAnswer(btn, ans) {
+      if (state.revealed) return;
+      document.querySelectorAll('.answer-btn').forEach(b => b.classList.remove('tapped'));
+      btn.classList.add('tapped');
+      state.selectedAnswer = ans;
+    }
+
+    document.getElementById('reveal-btn').addEventListener('click', () => {
+      if (state.revealed) return;
+      state.revealed = true;
+      document.getElementById('reveal-btn').hidden = true;
+
+      const correct = state.currentQuestion.correct_answer;
+      document.querySelectorAll('.answer-btn').forEach(btn => {
+        btn.disabled = true;
+        if (btn.dataset.answer === correct) {
+          btn.classList.remove('tapped');
+          btn.classList.add('correct');
+        } else if (btn.classList.contains('tapped')) {
+          btn.classList.remove('tapped');
+          btn.classList.add('incorrect');
+        }
+      });
+    });
+
+    document.getElementById('back-btn').addEventListener('click', () => showScreen('home'));
+    document.getElementById('next-btn').addEventListener('click', () => showScreen('home'));
+
+    /* ═══════════════════════════════════════════════════════
+       SETTINGS SCREEN
+    ═══════════════════════════════════════════════════════ */
+    async function openSettings() {
+      showScreen('settings');
+      renderSettingsRows(null);
+      showSpinner();
+      try {
+        await fetchAllCategories();
+        renderSettingsRows(state.allCategories);
+      } catch (_) {
+        showToast('Could not load category list. Check your connection.');
+      } finally {
+        hideSpinner();
+      }
+    }
+
+    function renderSettingsRows(categories) {
+      const body = document.getElementById('s-body');
+      body.innerHTML = '';
+      COLORS.forEach(color => {
+        const meta = COLOR_META[color];
+        const row = document.createElement('div');
+        row.className = 's-row';
+
+        const rowHeader = document.createElement('div');
+        rowHeader.className = 's-row-header';
+
+        const dot = document.createElement('div');
+        dot.className = 'color-dot';
+        dot.style.background = meta.hex;
+
+        const lbl = document.createElement('div');
+        lbl.className = 's-color-label';
+        lbl.textContent = color;
+
+        rowHeader.appendChild(dot);
+        rowHeader.appendChild(lbl);
+
+        const sel = document.createElement('select');
+        sel.className = 's-select';
+
+        if (!categories) {
+          const opt = document.createElement('option');
+          opt.textContent = 'Loading categories…';
+          sel.appendChild(opt);
+          sel.disabled = true;
+        } else {
+          categories.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.id;
+            opt.textContent = cat.name;
+            if (cat.id === state.categories[color]) opt.selected = true;
+            sel.appendChild(opt);
+          });
+          sel.disabled = false;
+          sel.addEventListener('change', () => {
+            state.categories[color] = parseInt(sel.value, 10);
+            saveCategories();
+            renderCategoryGrid();
+          });
+        }
+
+        row.appendChild(rowHeader);
+        row.appendChild(sel);
+        body.appendChild(row);
+      });
+    }
+
+    document.getElementById('settings-back-btn').addEventListener('click', () => showScreen('home'));
+
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      state.categories = { ...DEFAULTS };
+      saveCategories();
+      renderSettingsRows(state.allCategories);
+      renderCategoryGrid();
+      showToast('Categories reset to defaults.');
+    });
+
+    /* ═══════════════════════════════════════════════════════
+       INIT
+    ═══════════════════════════════════════════════════════ */
+    renderCategoryGrid();
+    showScreen('home');
+    // Pre-warm session token in background
+    getToken().catch(() => {});
+  </script>
+</body>
+</html>
