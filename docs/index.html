@@ -247,12 +247,13 @@
       text-transform: capitalize;
     }
     .q-body {
-      padding: 0 20px;
+      padding: 12px 20px 36px;
       flex: 1;
       display: flex;
       flex-direction: column;
       gap: 16px;
     }
+    .q-actions { margin-top: 6px; }
     .q-card {
       background: var(--surface);
       border-radius: var(--radius);
@@ -309,7 +310,6 @@
     .reveal-btn:active { background: var(--surface-2); color: var(--text); }
     .reveal-btn[hidden] { display: none; }
 
-    .q-footer { padding: 16px 20px 36px; margin-top: auto; }
     .next-btn {
       width: 100%;
       min-height: var(--touch);
@@ -429,10 +429,10 @@
         <div class="q-meta" id="q-meta"></div>
       </div>
       <div class="answers-list" id="answers-list"></div>
-      <button class="reveal-btn" id="reveal-btn">👁 Reveal Answer</button>
-    </div>
-    <div class="q-footer">
-      <button class="next-btn" id="next-btn">Next Question →</button>
+      <div class="q-actions">
+        <button class="reveal-btn" id="reveal-btn">👁 Reveal Answer</button>
+        <button class="next-btn" id="next-btn" hidden>Next Question →</button>
+      </div>
     </div>
   </div>
 
@@ -723,6 +723,7 @@
       });
 
       document.getElementById('reveal-btn').hidden = false;
+      document.getElementById('next-btn').hidden = true;
     }
 
     function tapAnswer(btn, ans) {
@@ -736,6 +737,7 @@
       if (state.revealed) return;
       state.revealed = true;
       document.getElementById('reveal-btn').hidden = true;
+      document.getElementById('next-btn').hidden = false;
 
       const correct = state.currentQuestion.correct_answer;
       document.querySelectorAll('.answer-btn').forEach(btn => {
