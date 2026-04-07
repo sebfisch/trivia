@@ -519,6 +519,15 @@
       return a;
     }
 
+    // "None of the above" / "All of the above" only make sense as the last option.
+    function isPositional(answer) {
+      const a = answer.toLowerCase();
+      return a.includes('none of the above') ||
+             a.includes('all of the above')  ||
+             a.includes('all of these')      ||
+             a.includes('none of these');
+    }
+
     function showSpinner() { document.getElementById('spinner-overlay').hidden = false; }
     function hideSpinner() { document.getElementById('spinner-overlay').hidden = true; }
 
@@ -697,7 +706,11 @@
       document.getElementById('q-text').textContent = decodeHTML(q.question);
       document.getElementById('q-meta').textContent = decodeHTML(q.category);
 
-      const answers = shuffle([q.correct_answer, ...q.incorrect_answers]);
+      const all = [q.correct_answer, ...q.incorrect_answers];
+      const answers = [
+        ...shuffle(all.filter(a => !isPositional(a))),
+        ...all.filter(a => isPositional(a)),
+      ];
       const list = document.getElementById('answers-list');
       list.innerHTML = '';
       answers.forEach(ans => {
