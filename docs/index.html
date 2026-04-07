@@ -578,10 +578,13 @@
           const res = await fetch(`https://opentdb.com/api_token.php?command=reset&token=${token}`);
           if (res.ok) {
             const data = await res.json();
-            const record = { token: data.token, ts: Date.now() };
-            localStorage.setItem(STORAGE_KEY_TOKEN, JSON.stringify(record));
-            state.sessionToken = data.token;
-            return data.token;
+            if (data.response_code === 0) {
+              const record = { token: data.token, ts: Date.now() };
+              localStorage.setItem(STORAGE_KEY_TOKEN, JSON.stringify(record));
+              state.sessionToken = data.token;
+              return data.token;
+            }
+            // Reset failed (e.g. token not found on OTDB) — fall through to fetchToken()
           }
         } catch (_) {}
       }
