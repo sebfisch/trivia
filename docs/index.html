@@ -99,7 +99,7 @@
 
     /* ─── HOME SCREEN ─────────────────────────────────────── */
     .home-header {
-      padding: 52px 24px 20px;
+      padding: 44px 24px 16px;
       position: relative;
     }
     .home-title {
@@ -148,7 +148,7 @@
       display: flex;
       gap: 8px;
       padding: 0 24px;
-      margin-bottom: 28px;
+      margin-bottom: 20px;
     }
     .diff-btn {
       flex: 1;
@@ -174,7 +174,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
-      padding: 0 24px 36px;
+      padding: 0 24px 12px;
     }
     .cat-btn {
       min-height: 100px;
@@ -390,12 +390,12 @@
       transition: all var(--trans);
     }
     .reset-btn:active { background: var(--surface-2); color: var(--text); }
-    .s-footer-btns { display: flex; flex-direction: column; gap: 10px; }
+    .s-footer-btns { display: flex; gap: 10px; }
+    .s-footer-btns .reset-btn { flex: 1; }
 
     /* ─── PRACTICE MODE ─────────────────────────────────── */
     .practice-section {
-      padding: 4px 24px 36px;
-      text-align: center;
+      padding: 0 24px 36px;
     }
     .practice-btn {
       width: 100%;
@@ -410,10 +410,10 @@
       transition: all var(--trans);
     }
     .practice-btn:active { filter: brightness(0.85); transform: scale(0.98); }
-    .practice-desc {
+    .practice-btn .practice-hint {
       font-size: 0.78rem;
-      color: var(--muted);
-      margin-top: 8px;
+      font-weight: 400;
+      opacity: 0.75;
     }
     .practice-dots {
       display: flex;
@@ -461,8 +461,7 @@
     <div class="cat-grid" id="cat-grid"></div>
 
     <div class="practice-section">
-      <button class="practice-btn" id="practice-btn">Practice Mode</button>
-      <div class="practice-desc">Answer one question from each category</div>
+      <button class="practice-btn" id="practice-btn">Practice Mode <span class="practice-hint">— one from each category</span></button>
     </div>
   </div>
 
