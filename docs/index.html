@@ -390,6 +390,53 @@
       transition: all var(--trans);
     }
     .reset-btn:active { background: var(--surface-2); color: var(--text); }
+    .s-footer-btns { display: flex; flex-direction: column; gap: 10px; }
+
+    /* ─── PRACTICE MODE ─────────────────────────────────── */
+    .practice-section {
+      padding: 4px 24px 36px;
+      text-align: center;
+    }
+    .practice-btn {
+      width: 100%;
+      min-height: var(--touch);
+      background: linear-gradient(135deg, #818cf8, #c084fc);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--trans);
+    }
+    .practice-btn:active { filter: brightness(0.85); transform: scale(0.98); }
+    .practice-desc {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+    .practice-dots {
+      display: flex;
+      gap: 6px;
+      margin-left: auto;
+      align-items: center;
+    }
+    .practice-dots[hidden] { display: none; }
+    .practice-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      opacity: 0.35;
+      transition: opacity 0.3s, transform 0.3s;
+    }
+    .practice-dot.completed {
+      opacity: 1;
+      transform: scale(1.15);
+    }
+    .practice-dot.current {
+      opacity: 0.85;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.5);
+    }
   </style>
 </head>
 <body>
@@ -412,6 +459,11 @@
 
     <div class="section-label">Category</div>
     <div class="cat-grid" id="cat-grid"></div>
+
+    <div class="practice-section">
+      <button class="practice-btn" id="practice-btn">Practice Mode</button>
+      <div class="practice-desc">Answer one question from each category</div>
+    </div>
   </div>
 
   <!-- ─── Question Screen ───────────────────────────────────── -->
@@ -422,6 +474,7 @@
         <div class="q-cat-name" id="q-cat-name"></div>
         <div class="q-difficulty" id="q-difficulty-label"></div>
       </div>
+      <div class="practice-dots" id="practice-dots" hidden></div>
     </div>
     <div class="q-body">
       <div class="q-card">
@@ -444,7 +497,10 @@
     </div>
     <div class="s-body" id="s-body"></div>
     <div class="s-footer">
-      <button class="reset-btn" id="reset-btn">Reset to Defaults</button>
+      <div class="s-footer-btns">
+        <button class="reset-btn" id="reset-btn">Reset to Defaults</button>
+        <button class="reset-btn" id="randomize-btn">Randomize</button>
+      </div>
     </div>
   </div>
 
@@ -515,6 +571,8 @@
       revealed: false,
       selectedAnswer: null,
       allCategories: null,
+      practiceMode: false,
+      practiceIndex: 0,
     };
 
     function loadCategories() {
@@ -709,6 +767,38 @@
       });
     }
 
+    /* ─── PRACTICE MODE ─────────────────────────────────── */
+    function startPractice() {
+      state.practiceMode = true;
+      state.practiceIndex = 0;
+      startQuestion(COLORS[0]);
+    }
+
+    function exitPractice() {
+      state.practiceMode = false;
+      state.practiceIndex = 0;
+    }
+
+    function renderPracticeDots() {
+      const container = document.getElementById('practice-dots');
+      if (!state.practiceMode) {
+        container.hidden = true;
+        return;
+      }
+      container.hidden = false;
+      container.innerHTML = '';
+      COLORS.forEach((color, i) => {
+        const dot = document.createElement('div');
+        dot.className = 'practice-dot';
+        if (i < state.practiceIndex) dot.classList.add('completed');
+        if (i === state.practiceIndex) dot.classList.add('current');
+        dot.style.background = COLOR_META[color].hex;
+        container.appendChild(dot);
+      });
+    }
+
+    document.getElementById('practice-btn').addEventListener('click', startPractice);
+
     document.getElementById('diff-row').addEventListener('click', e => {
       const btn = e.target.closest('.diff-btn');
       if (!btn) return;
@@ -779,6 +869,7 @@
 
       document.getElementById('reveal-btn').hidden = false;
       document.getElementById('next-btn').hidden = true;
+      renderPracticeDots();
     }
 
     function tapAnswer(btn, ans) {
@@ -805,10 +896,51 @@
           btn.classList.add('incorrect');
         }
       });
+
+      const nextBtn = document.getElementById('next-btn');
+      if (state.practiceMode) {
+        const isCorrect = state.selectedAnswer === correct;
+        const isLast = state.practiceIndex === COLORS.length - 1;
+        if (!isCorrect) {
+          nextBtn.textContent = 'Try Again →';
+        } else if (isLast) {
+          nextBtn.textContent = 'Finish Practice →';
+        } else {
+          nextBtn.textContent = 'Next Category →';
+        }
+      } else {
+        nextBtn.textContent = 'Next Question →';
+      }
     });
 
-    document.getElementById('back-btn').addEventListener('click', () => showScreen('home'));
-    document.getElementById('next-btn').addEventListener('click', () => showScreen('home'));
+    document.getElementById('back-btn').addEventListener('click', () => {
+      exitPractice();
+      showScreen('home');
+    });
+
+    document.getElementById('next-btn').addEventListener('click', () => {
+      if (!state.practiceMode) {
+        showScreen('home');
+        return;
+      }
+
+      const isCorrect = state.selectedAnswer === state.currentQuestion.correct_answer;
+
+      if (!isCorrect) {
+        startQuestion(COLORS[state.practiceIndex]);
+        return;
+      }
+
+      if (state.practiceIndex === COLORS.length - 1) {
+        exitPractice();
+        showScreen('home');
+        showToast('Practice complete! All 6 categories mastered!');
+        return;
+      }
+
+      state.practiceIndex++;
+      startQuestion(COLORS[state.practiceIndex]);
+    });
 
     /* ═══════════════════════════════════════════════════════
        SETTINGS SCREEN
@@ -887,6 +1019,18 @@
       renderSettingsRows(state.allCategories);
       renderCategoryGrid();
       showToast('Categories reset to defaults.');
+    });
+
+    document.getElementById('randomize-btn').addEventListener('click', () => {
+      const ids = Object.keys(CATEGORY_DB).map(Number);
+      const picked = shuffle(ids).slice(0, 6);
+      COLORS.forEach((color, i) => {
+        state.categories[color] = picked[i];
+      });
+      saveCategories();
+      renderSettingsRows(state.allCategories);
+      renderCategoryGrid();
+      showToast('Categories randomized!');
     });
 
     /* ═══════════════════════════════════════════════════════
