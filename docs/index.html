@@ -471,15 +471,43 @@
       blue: 22, pink: 11, yellow: 23, brown: 25, green: 17, purple: 21,
     };
 
+    const CATEGORY_DB = {
+      9:  { name: 'General Knowledge',                    icon: '🧠' },
+      10: { name: 'Entertainment: Books',                  icon: '📚' },
+      11: { name: 'Entertainment: Film',                   icon: '🎬' },
+      12: { name: 'Entertainment: Music',                  icon: '🎵' },
+      13: { name: 'Entertainment: Musicals & Theatres',    icon: '🎭' },
+      14: { name: 'Entertainment: Television',             icon: '📺' },
+      15: { name: 'Entertainment: Video Games',            icon: '🎮' },
+      16: { name: 'Entertainment: Board Games',            icon: '🎲' },
+      17: { name: 'Science & Nature',                      icon: '🔬' },
+      18: { name: 'Science: Computers',                    icon: '💻' },
+      19: { name: 'Science: Mathematics',                  icon: '🔢' },
+      20: { name: 'Mythology',                             icon: '🏛️' },
+      21: { name: 'Sports',                                icon: '⚽' },
+      22: { name: 'Geography',                             icon: '🌍' },
+      23: { name: 'History',                               icon: '📜' },
+      24: { name: 'Politics',                              icon: '⚖️' },
+      25: { name: 'Art',                                   icon: '🎨' },
+      26: { name: 'Celebrities',                           icon: '⭐' },
+      27: { name: 'Animals',                               icon: '🐾' },
+      28: { name: 'Vehicles',                              icon: '🚗' },
+      29: { name: 'Entertainment: Comics',                 icon: '💬' },
+      30: { name: 'Science: Gadgets',                      icon: '📱' },
+      31: { name: 'Entertainment: Japanese Anime & Manga', icon: '🍥' },
+      32: { name: 'Entertainment: Cartoon & Animations',   icon: '🖍️' },
+    };
+
     const STORAGE_KEY_CATS  = 'tp-categories';
     const STORAGE_KEY_TOKEN = 'tp-session-token';
+    const STORAGE_KEY_DIFF  = 'tp-difficulty';
     const TOKEN_TTL = 6 * 60 * 60 * 1000; // 6 hours in ms
 
     /* ═══════════════════════════════════════════════════════
        STATE
     ═══════════════════════════════════════════════════════ */
     const state = {
-      difficulty: 'medium',
+      difficulty: loadDifficulty(),
       categories: loadCategories(),
       sessionToken: null,
       currentColor: null,
@@ -499,6 +527,18 @@
 
     function saveCategories() {
       localStorage.setItem(STORAGE_KEY_CATS, JSON.stringify(state.categories));
+    }
+
+    function loadDifficulty() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_DIFF);
+        if (saved && ['easy', 'medium', 'hard', 'any'].includes(saved)) return saved;
+      } catch (_) {}
+      return 'medium';
+    }
+
+    function saveDifficulty() {
+      localStorage.setItem(STORAGE_KEY_DIFF, state.difficulty);
     }
 
     /* ═══════════════════════════════════════════════════════
@@ -550,6 +590,18 @@
       if (!state.allCategories) return null;
       const cat = state.allCategories.find(c => c.id === id);
       return cat ? cat.name : null;
+    }
+
+    function getCategoryShortName(id) {
+      const entry = CATEGORY_DB[id];
+      if (!entry) return null;
+      const parts = entry.name.split(': ');
+      return parts.length > 1 ? parts[parts.length - 1] : parts[0];
+    }
+
+    function getCategoryIcon(id) {
+      const entry = CATEGORY_DB[id];
+      return entry ? entry.icon : '❓';
     }
 
     /* ═══════════════════════════════════════════════════════
@@ -642,14 +694,15 @@
       COLORS.forEach(color => {
         const meta = COLOR_META[color];
         const catId = state.categories[color];
-        const catName = getCategoryName(catId) || meta.label;
+        const catName = getCategoryShortName(catId) || meta.label;
+        const catIcon = getCategoryIcon(catId);
 
         const btn = document.createElement('button');
         btn.className = 'cat-btn';
         btn.style.background =
           `linear-gradient(135deg, ${meta.hex}ee, ${meta.hex}99)`;
         btn.innerHTML =
-          `<span class="cat-icon">${meta.icon}</span>` +
+          `<span class="cat-icon">${catIcon}</span>` +
           `<span class="cat-label">${catName}</span>`;
         btn.addEventListener('click', () => startQuestion(color));
         grid.appendChild(btn);
@@ -662,6 +715,7 @@
       document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       state.difficulty = btn.dataset.diff;
+      saveDifficulty();
     });
 
     document.getElementById('open-settings-btn').addEventListener('click', openSettings);
@@ -700,6 +754,7 @@
         `linear-gradient(135deg, ${meta.hex}cc, ${meta.hex}77)`;
 
       document.getElementById('q-cat-name').textContent =
+        (CATEGORY_DB[state.categories[color]]?.name) ||
         getCategoryName(state.categories[color]) || meta.label;
       document.getElementById('q-difficulty-label').textContent =
         q.difficulty.charAt(0).toUpperCase() + q.difficulty.slice(1);
@@ -838,6 +893,9 @@
        INIT
     ═══════════════════════════════════════════════════════ */
     renderCategoryGrid();
+    document.querySelectorAll('.diff-btn').forEach(b => {
+      b.classList.toggle('selected', b.dataset.diff === state.difficulty);
+    });
     showScreen('home');
     // Pre-warm session token in background
     getToken().catch(() => {});
